@@ -2,29 +2,31 @@
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
+RUN echo "Passo 1: Iniciando setup..."
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
+EXPOSE 7777
 
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["SalesApi/SalesApi.csproj", "SalesApi/"]
-RUN dotnet restore "./SalesApi/SalesApi.csproj"
+# COPY ["Directory.Packages.props", "."]
+COPY ["src/Gateway/Gateway.csproj", "src/Gateway/"]
+RUN dotnet restore "./src/Gateway/Gateway.csproj"
 COPY . .
-WORKDIR "/src/SalesApi"
-RUN dotnet build "./SalesApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/src/Gateway"
+RUN dotnet build "./Gateway.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./SalesApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Gateway.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "SalesApi.dll"]
+
+ENV ASPNETCORE_URLS=http://+:7777
+
+ENTRYPOINT ["dotnet", "Gateway.dll"]
